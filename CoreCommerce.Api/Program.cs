@@ -1,4 +1,6 @@
+using CoreCommerce.Api.Background;
 using CoreCommerce.Api.Middleware;
+using CoreCommerce.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +10,18 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// ==========================================
+// DEPENDENCY INJECTION REGISTRATIONS
+// ==========================================
+// We map the Interface to the Implementation and declare its lifetime
+builder.Services.AddScoped<IOrderProcessingService, OrderProcessingService>();
+builder.Services.AddTransient<ITimeService, TimeService>();
+// KEYED SERVICES REGISTRATIONS
+builder.Services.AddKeyedScoped<IPaymentService, StripePaymentService>("Stripe");
+builder.Services.AddKeyedScoped<IPaymentService, PayPalPaymentService>("PayPal");
+
+builder.Services.AddSingleton<BackgroundMetricsPublisher>();
 
 var app = builder.Build();
 
@@ -39,5 +53,9 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Resolve the singleton manually just to test it on startup
+var metricsPublisher = app.Services.GetRequiredService<BackgroundMetricsPublisher>();
+metricsPublisher.PublishMetrics();
 
 app.Run();
