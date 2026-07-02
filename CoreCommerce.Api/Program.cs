@@ -1,5 +1,6 @@
 using CoreCommerce.Api.Background;
 using CoreCommerce.Api.Middleware;
+using CoreCommerce.Api.Options;
 using CoreCommerce.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +11,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// ==========================================
+// CONFIGURATION & OPTIONS REGISTRATION
+// ==========================================
+// This binds the appsettings JSON section to our C# class
+builder.Services.AddOptions<OrderSettings>()
+    .Bind(builder.Configuration.GetSection(OrderSettings.SectionName))
+    .ValidateDataAnnotations() // Evaluates [Required] and [Range] rules
+    .ValidateOnStart();        // Fail-Fast: Crashes application instantly if validations fail!
 
 // ==========================================
 // DEPENDENCY INJECTION REGISTRATIONS

@@ -1,11 +1,14 @@
-﻿using CoreCommerce.Api.Services;
+﻿using CoreCommerce.Api.Options;
+using CoreCommerce.Api.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace CoreCommerce.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class OrdersController(IOrderProcessingService orderProcessingService, ITimeService timeService) : ControllerBase
+public class OrdersController(IOrderProcessingService orderProcessingService, 
+    ITimeService timeService, IOptionsSnapshot<OrderSettings> orderOptions) : ControllerBase
 {
     [HttpGet]
     public IActionResult GetOrders()
@@ -21,17 +24,40 @@ public class OrdersController(IOrderProcessingService orderProcessingService, IT
     }
 
     [HttpPost("{orderId}/process")]
-    public IActionResult Process(string orderId)
+    public IActionResult Process(string orderId, [FromQuery] int itemCount)
     {
-        // We don't care HOW orderProcessingService was created. We just use it.
+        OrderSettings settings = orderOptions.Value;
+
+        // Applying configuration properties to drive business constraints
+        if (itemCount > settings.MaxItemsPerOrder)
+        {
+            return BadRequest($"Order exceeds the maximum allowed quantity of {settings.MaxItemsPerOrder} items.");
+        }
+
         var result = orderProcessingService.ProcessOrder(orderId);
 
         return Ok(new
         {
             Message = result,
-            ServiceId = orderProcessingService.GetServiceInstanceId(),
+            Currency = settings.DefaultCurrency,
             ProcessedAt = timeService.GetCurrentTime()
         });
     }
+
+    [HttpGet("settings")]
+    public IActionResult GetCurrentSettings()
+    {
+        // Extract the actual data class using the .Value property
+        OrderSettings settings = orderOptions.Value;
+
+        return Ok(new
+        {
+            Merchant = settings.MerchantName,
+            AllowedMaxItems = settings.MaxItemsPerOrder,
+            ShippingInternational = settings.EnableInternationalShipping,
+            CurrencySystem = settings.DefaultCurrency
+        });
+    }
+
 
 }
